@@ -219,11 +219,11 @@ function updateBall(time: DOMHighResTimeStamp) {
     if (ballPosition.z < ballMin) {
       ballPosition.z = ballMin;
       ballVelocity.z = Math.abs(ballVelocity.z);
-      // TODO add a splat image on the glass or something like that.
+      back.refresh();
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
-      back.refresh();
+      // TODO add a splat image on the glass or something like that.
     }
   }
   lastBallUpdate = time;
