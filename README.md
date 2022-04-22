@@ -1,5 +1,13 @@
 # Test code
-Just trying a few things.
-* [Vite](https://vitejs.dev/)
-* [Rough.js](https://roughjs.com/)
-* [See this live in your browser](https://tradeideasphilip.github.io/roughjs-with-vite/)
+Just trying a few things.  [See this live in your browser](https://tradeideasphilip.github.io/roughjs-with-vite/)
+## Vite
+ https://vitejs.dev/
+
+ Consider running
+ * `npm run dev`
+ * or `npm run build`
+
+ ## Rough.js
+https://roughjs.com/
+
+Fun graphics!

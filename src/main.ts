@@ -87,75 +87,80 @@ const svgForeground = getById("foreground", SVGGElement);
 const svg = getById("main", SVGSVGElement);
 const roughSvg = rough.svg(svg);
 
-function wallOptions(color: string): Options {
-  return {
-    stroke: "none",
-    fill: color,
-    fillStyle: "zigzag",
-    hachureGap: 5,
-    disableMultiStrokeFill: true,
-    hachureAngle: Math.random() * 360,
-    //preserveVertices: true,
-  };
+class Wall {
+  private static options(color: string): Options {
+    return {
+      stroke: "none",
+      fill: color,
+      fillStyle: "zigzag",
+      hachureGap: 5,
+      disableMultiStrokeFill: true,
+      hachureAngle: Math.random() * 360,
+      //preserveVertices: true,
+    };
+  }
+  #element : SVGElement | undefined;
+  constructor(private readonly points : Point[], private readonly color : string) {
+    this.refresh();
+  }
+  refresh() {
+    if (this.#element) {
+      this.#element.remove();
+    }
+    this.#element = roughSvg.polygon(this.points, Wall.options(this.color));
+    svgBackground.appendChild(this.#element);
+  }
 }
 
-const left = roughSvg.polygon(
+const left = new Wall(
   [
     flatten({ x: boxMin, y: boxMin, z: boxMin }),
     flatten({ x: boxMin, y: boxMax, z: boxMin }),
     flatten({ x: boxMin, y: boxMax, z: boxMax }),
     flatten({ x: boxMin, y: boxMin, z: boxMax }),
   ],
-  wallOptions("#008000")
+  "#008000"
 );
-svgBackground.appendChild(left);
 
-const right = roughSvg.polygon(
+const right = new Wall(
   [
     flatten({ x: boxMax, y: boxMin, z: boxMin }),
     flatten({ x: boxMax, y: boxMax, z: boxMin }),
     flatten({ x: boxMax, y: boxMax, z: boxMax }),
     flatten({ x: boxMax, y: boxMin, z: boxMax }),
   ],
-  wallOptions("#000080")
+  "#000080"
 );
-svgBackground.appendChild(right);
 
-const top = roughSvg.polygon(
+const top = new Wall(
   [
     flatten({ x: boxMin, y: boxMax, z: boxMin }),
     flatten({ x: boxMax, y: boxMax, z: boxMin }),
     flatten({ x: boxMax, y: boxMax, z: boxMax }),
     flatten({ x: boxMin, y: boxMax, z: boxMax }),
   ],
-  wallOptions("#808000")
+  "#808000"
 );
-svgBackground.appendChild(top);
 
-const bottom = roughSvg.polygon(
+const bottom = new Wall(
   [
     flatten({ x: boxMin, y: boxMin, z: boxMin }),
     flatten({ x: boxMax, y: boxMin, z: boxMin }),
     flatten({ x: boxMax, y: boxMin, z: boxMax }),
     flatten({ x: boxMin, y: boxMin, z: boxMax }),
   ],
-  wallOptions("#008080")
+  "#008080"
 );
-svgBackground.appendChild(bottom);
 
-const back = roughSvg.polygon(
+const back = new Wall(
   [
     flatten({ x: boxMin, y: boxMin, z: boxMin }),
     flatten({ x: boxMax, y: boxMin, z: boxMin }),
     flatten({ x: boxMax, y: boxMax, z: boxMin }),
     flatten({ x: boxMin, y: boxMax, z: boxMin }),
   ],
-  wallOptions("#800000")
+  "#800000"
 );
-svgBackground.appendChild(back);
-
-//const y = roughSvg.polygon([[5, 5], [5, 95], [95, 95],[95, 5]]);
-//svgBackground.appendChild(y)
 
 function makeBall(center: Point3) {
   const diameter = ballRadius * flattenRatio(center.z) * 2;
@@ -173,16 +178,6 @@ function makeBall(center: Point3) {
   svgForeground.appendChild(main);
   return main;
 }
-
-/*
-(window as any).makeBall = makeBall;
-const numberOfBalls = 5;
-const positionMaker = makeLinear(0, ballMin, numberOfBalls - 1, ballMax);
-for (let i = 0; i < numberOfBalls; i++) {
-  const position = positionMaker(i);
-  makeBall({ x: position, y: position, z: position });
-}
-*/
 
 const ballPosition : Point3 = { x: Math.random() * ballRange + ballMin, y: Math.random() * ballRange + ballMin, z: Math.random() * ballRange + ballMin,  };
 const ballVelocity = {
@@ -204,25 +199,31 @@ function updateBall(time: DOMHighResTimeStamp) {
     if (ballPosition.x < ballMin) {
       ballPosition.x = ballMin;
       ballVelocity.x = Math.abs(ballVelocity.x);
+      left.refresh();
     } else if (ballPosition.x > ballMax) {
       ballPosition.x = ballMax;
       ballVelocity.x = -Math.abs(ballVelocity.x);
+      right.refresh();
     }
     ballPosition.y += ballVelocity.y * secondsPassed;
     if (ballPosition.y < ballMin) {
       ballPosition.y = ballMin;
       ballVelocity.y = Math.abs(ballVelocity.y);
+      bottom.refresh();
     } else if (ballPosition.y > ballMax) {
       ballPosition.y = ballMax;
       ballVelocity.y = -Math.abs(ballVelocity.y);
+      top.refresh();
     }
     ballPosition.z += ballVelocity.z * secondsPassed;
     if (ballPosition.z < ballMin) {
       ballPosition.z = ballMin;
       ballVelocity.z = Math.abs(ballVelocity.z);
+      // TODO add a splat image on the glass or something like that.
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
+      back.refresh();
     }
   }
   lastBallUpdate = time;
