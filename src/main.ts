@@ -87,6 +87,18 @@ const svgForeground = getById("foreground", SVGGElement);
 const svg = getById("main", SVGSVGElement);
 const roughSvg = rough.svg(svg);
 
+function midpoint(a: Point, b: Point): Point {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
+function interpolate(from: Point, to: Point, fromRatio: number): Point {
+  const toRatio = 1 - fromRatio;
+  return [
+    from[0] * fromRatio + to[0] * toRatio,
+    from[1] * fromRatio + to[1] * toRatio,
+  ];
+}
+
 class Wall {
   private static options(color: string): Options {
     return {
@@ -99,16 +111,128 @@ class Wall {
       //preserveVertices: true,
     };
   }
-  #element : SVGElement | undefined;
-  constructor(private readonly points : Point[], private readonly color : string) {
+  #element: SVGElement | undefined;
+  constructor(
+    private readonly points: Point[],
+    private readonly color: string
+  ) {
+    if (points.length != 4) {
+      throw new Error("wtf");
+    }
     this.refresh();
   }
-  refresh() {
+  private clear() {
     if (this.#element) {
       this.#element.remove();
     }
+    this.#element = undefined;
+  }
+  refresh() {
+    this.clear();
     this.#element = roughSvg.polygon(this.points, Wall.options(this.color));
     svgBackground.appendChild(this.#element);
+  }
+  highlightPointXX(toHighlight: Point3) {
+    this.clear();
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const toHighlight2 = flatten(toHighlight);
+    this.points.forEach((point, index) => {
+      const nextPoint = this.points[(index + 1) % 4];
+      const [hachureAngle, stroke] = index % 2 ? [90, this.color] : [0, "none"];
+      const triangle = roughSvg.polygon([point, nextPoint, toHighlight2], {
+        ...Wall.options(this.color),
+        hachureAngle,
+        //stroke,
+        //strokeWidth: 0.25,
+        //fillWeight: 0.5
+      });
+      group.appendChild(triangle);
+    });
+    this.#element = group;
+    svgBackground.appendChild(group);
+  }
+  highlightPointX(toHighlight: Point3) {
+    this.clear();
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const toHighlight2 = flatten(toHighlight);
+    this.points.forEach((previousPoint, index) => {
+      const point = this.points[(index + 1) % 4];
+      const nextPoint = this.points[(index + 2) % 4];
+      const [hachureAngle, stroke] = index % 2 ? [90, this.color] : [0, "none"];
+      const polygon = roughSvg.polygon(
+        [
+          point,
+          midpoint(point, nextPoint),
+          toHighlight2,
+          midpoint(point, previousPoint),
+        ],
+        { ...Wall.options(this.color), hachureAngle, stroke, strokeWidth: 0.5 }
+      );
+      group.appendChild(polygon);
+    });
+    this.#element = group;
+    svgBackground.appendChild(group);
+  }
+  highlightPoint(toHighlight: Point3, time: DOMHighResTimeStamp) {
+    this.clear();
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const options = Wall.options(this.color);
+    const main = roughSvg.polygon(this.points, options);
+    group.appendChild(main);
+    this.#element = group;
+    svgBackground.appendChild(group);
+
+    const toHighlight2 = flatten(toHighlight);
+    const startTime = time; //performance.now();
+    const endTime = startTime + 350;
+    const size = makeLinear(startTime, 0.025, endTime, 0.5);
+    const gap = makeLinear(startTime, 2, endTime, 10);
+    const weight = makeLinear(startTime, 0.85, endTime, 0.05);
+    let bounce: SVGElement | undefined;
+    let lastUpdate = -Infinity;
+    const bounceOptions = {
+      ...options,
+      hachureAngle: options.hachureAngle! + 45,
+      fillStyle: "cross-hatch",
+      //fill: "none",
+      roughness: 4,
+      //hachureGap: 20,
+      //stroke: this.color,
+      //strokeWidth: 0.25,
+      //fillWeight: 0.5
+    };
+    const bounceAction = (time: DOMHighResTimeStamp) => {
+      if (time < lastUpdate + 150) {
+        return;
+      }
+      lastUpdate = time;
+      if (bounce) {
+        bounce.remove();
+        bounce = undefined;
+      }
+      if (time > endTime) {
+        Wall.#timerUpdate.delete(this);
+      } else {
+        const currentSize = size(time);
+        if ((!isFinite(currentSize)) || (currentSize < 0) || (currentSize > 1)) {
+          debugger;
+        }
+        const bouncePoints = this.points.map((point) =>
+          interpolate(point, toHighlight2, currentSize)
+        );
+        bounceOptions.hachureGap = gap(time);
+        bounceOptions.fillWeight = weight(time);
+        bounce = roughSvg.polygon(bouncePoints, bounceOptions);
+        group.appendChild(bounce);
+      }
+    };
+    Wall.#timerUpdate.set(this, bounceAction);
+  }
+  static #timerUpdate = new Map<Wall, (time: DOMHighResTimeStamp) => void>();
+  static timerUpdate(time: DOMHighResTimeStamp) {
+    for (const callback of this.#timerUpdate.values()) {
+      callback(time);
+    }
   }
 }
 
@@ -171,15 +295,19 @@ function makeBall(center: Point3) {
     strokeWidth: 0.2,
     disableMultiStroke: true,
     fillStyle: "solid",
-    roughness:0.3333,
+    roughness: 0.3333,
     // curveStepCount:3 looks a lot like a triangle, sorta
-    //curveStepCount:99 looks like a paintball hit something.  
+    //curveStepCount:99 looks like a paintball hit something.
   });
   svgForeground.appendChild(main);
   return main;
 }
 
-const ballPosition : Point3 = { x: Math.random() * ballRange + ballMin, y: Math.random() * ballRange + ballMin, z: Math.random() * ballRange + ballMin,  };
+const ballPosition: Point3 = {
+  x: Math.random() * ballRange + ballMin,
+  y: Math.random() * ballRange + ballMin,
+  z: Math.random() * ballRange + ballMin,
+};
 const ballVelocity = {
   x: Math.random() * 100 - 50,
   y: Math.random() * 100 - 50,
@@ -199,27 +327,32 @@ function updateBall(time: DOMHighResTimeStamp) {
     if (ballPosition.x < ballMin) {
       ballPosition.x = ballMin;
       ballVelocity.x = Math.abs(ballVelocity.x);
-      left.refresh();
+      //left.refresh();
+      left.highlightPoint(ballPosition, time);
     } else if (ballPosition.x > ballMax) {
       ballPosition.x = ballMax;
       ballVelocity.x = -Math.abs(ballVelocity.x);
-      right.refresh();
+      //right.refresh();
+      right.highlightPoint(ballPosition, time);
     }
     ballPosition.y += ballVelocity.y * secondsPassed;
     if (ballPosition.y < ballMin) {
       ballPosition.y = ballMin;
       ballVelocity.y = Math.abs(ballVelocity.y);
-      bottom.refresh();
+      //bottom.refresh();
+      bottom.highlightPoint(ballPosition, time);
     } else if (ballPosition.y > ballMax) {
       ballPosition.y = ballMax;
       ballVelocity.y = -Math.abs(ballVelocity.y);
-      top.refresh();
+      //top.refresh();
+      top.highlightPoint(ballPosition, time);
     }
     ballPosition.z += ballVelocity.z * secondsPassed;
     if (ballPosition.z < ballMin) {
       ballPosition.z = ballMin;
       ballVelocity.z = Math.abs(ballVelocity.z);
-      back.refresh();
+      //back.refresh();
+      back.highlightPoint(ballPosition, time);
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
@@ -229,7 +362,7 @@ function updateBall(time: DOMHighResTimeStamp) {
   lastBallUpdate = time;
 }
 
-let ballSvg : SVGElement | undefined;
+let ballSvg: SVGElement | undefined;
 
 function animate(time: DOMHighResTimeStamp) {
   if (ballSvg) {
@@ -240,5 +373,6 @@ function animate(time: DOMHighResTimeStamp) {
   updateBall(time);
   ballSvg = makeBall(ballPosition);
   svgForeground.appendChild(ballSvg);
+  Wall.timerUpdate(time);
 }
 requestAnimationFrame(animate);
