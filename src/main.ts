@@ -175,7 +175,7 @@ class Wall {
         Wall.#timerUpdate.delete(this);
       } else {
         const currentSize = size(time);
-        if ((!isFinite(currentSize)) || (currentSize < 0) || (currentSize > 1)) {
+        if (!isFinite(currentSize) || currentSize < 0 || currentSize > 1) {
           debugger;
         }
         const bouncePoints = this.points.map((point) =>
@@ -260,19 +260,19 @@ const front = new Wall(
 );
 */
 
-(window as any).walls = {top, bottom, left, right, /*front,*/ back};
+(window as any).walls = { top, bottom, left, right, /*front,*/ back };
 
-
-function makeBall(center: Point3) {
-  const diameter = ballRadius * flattenRatio(center.z) * 2;
+function makeBall(center: Point3, splat = false) {
+  const diameter = (splat ? 2 : 1) * ballRadius * flattenRatio(center.z) * 2;
   const [x, y] = flatten(center);
   const main = roughSvg.circle(x, y, diameter, {
-    fill: "#ffa0a0",
+    fill: /*splat ? "#ff5050" : */ "#ffa0a0",
     stroke: "none",
     strokeWidth: 0.2,
     disableMultiStroke: true,
     fillStyle: "solid",
-    roughness: 0.3333,
+    roughness: splat ? 1 : 0.3333,
+    curveStepCount: splat ? 50 : 9,
     // curveStepCount:3 looks a lot like a triangle, sorta
     //curveStepCount:99 looks like a paintball hit something.
   });
@@ -334,24 +334,35 @@ function updateBall(time: DOMHighResTimeStamp) {
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
-      // TODO add a splat image on the glass or something like that.
-      // front.highlightPoint(ballPosition, time);
+      // This constant is a tough call.  Too fast and the user can't
+      // really the details of the smashed ball.  It looks more like
+      // a random flash.  I love the shape of the splat and I wish I
+      // could keep it up longer.  If I make this too long it looks weird.
+      // It looks like the window has frozen or something.
+      ballSmashedUntil = time + 150;//100 + Math.random() * 75;
     }
   }
   lastBallUpdate = time;
 }
 
+let ballSmashedUntil = -Infinity;
+let smashedBallVisible = false;
+
 let ballSvg: SVGElement | undefined;
 
 function animate(time: DOMHighResTimeStamp) {
-  if (ballSvg) {
-    ballSvg.remove();
-    ballSvg = undefined;
-  }
   requestAnimationFrame(animate);
   updateBall(time);
-  ballSvg = makeBall(ballPosition);
-  svgForeground.appendChild(ballSvg);
+  const showSmashedBall = time < ballSmashedUntil;
+  if (!(showSmashedBall && smashedBallVisible)) {
+    if (ballSvg) {
+      ballSvg.remove();
+      ballSvg = undefined;
+    }
+    ballSvg = makeBall(ballPosition, showSmashedBall);
+    svgForeground.appendChild(ballSvg);
+  }
+  smashedBallVisible = showSmashedBall;
   Wall.timerUpdate(time);
 }
 requestAnimationFrame(animate);
