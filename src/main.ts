@@ -114,7 +114,8 @@ class Wall {
   #element: SVGElement | undefined;
   constructor(
     private readonly points: Point[],
-    private readonly color: string
+    private readonly color: string,
+    private readonly bounceColor = color
   ) {
     if (points.length != 4) {
       throw new Error("wtf");
@@ -132,47 +133,6 @@ class Wall {
     this.#element = roughSvg.polygon(this.points, Wall.options(this.color));
     svgBackground.appendChild(this.#element);
   }
-  highlightPointXX(toHighlight: Point3) {
-    this.clear();
-    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const toHighlight2 = flatten(toHighlight);
-    this.points.forEach((point, index) => {
-      const nextPoint = this.points[(index + 1) % 4];
-      const [hachureAngle, stroke] = index % 2 ? [90, this.color] : [0, "none"];
-      const triangle = roughSvg.polygon([point, nextPoint, toHighlight2], {
-        ...Wall.options(this.color),
-        hachureAngle,
-        //stroke,
-        //strokeWidth: 0.25,
-        //fillWeight: 0.5
-      });
-      group.appendChild(triangle);
-    });
-    this.#element = group;
-    svgBackground.appendChild(group);
-  }
-  highlightPointX(toHighlight: Point3) {
-    this.clear();
-    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const toHighlight2 = flatten(toHighlight);
-    this.points.forEach((previousPoint, index) => {
-      const point = this.points[(index + 1) % 4];
-      const nextPoint = this.points[(index + 2) % 4];
-      const [hachureAngle, stroke] = index % 2 ? [90, this.color] : [0, "none"];
-      const polygon = roughSvg.polygon(
-        [
-          point,
-          midpoint(point, nextPoint),
-          toHighlight2,
-          midpoint(point, previousPoint),
-        ],
-        { ...Wall.options(this.color), hachureAngle, stroke, strokeWidth: 0.5 }
-      );
-      group.appendChild(polygon);
-    });
-    this.#element = group;
-    svgBackground.appendChild(group);
-  }
   highlightPoint(toHighlight: Point3, time: DOMHighResTimeStamp) {
     this.clear();
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -189,7 +149,7 @@ class Wall {
     const gap = makeLinear(startTime, 2, endTime, 10);
     const weight = makeLinear(startTime, 0.85, endTime, 0.05);
     let bounce: SVGElement | undefined;
-    let lastUpdate = -Infinity;
+    let nextUpdate = -Infinity;
     const bounceOptions = {
       ...options,
       hachureAngle: options.hachureAngle! + 45,
@@ -200,12 +160,13 @@ class Wall {
       //stroke: this.color,
       //strokeWidth: 0.25,
       //fillWeight: 0.5
+      fill: this.bounceColor,
     };
     const bounceAction = (time: DOMHighResTimeStamp) => {
-      if (time < lastUpdate + 150) {
+      if (time < nextUpdate) {
         return;
       }
-      lastUpdate = time;
+      nextUpdate = time + 100 + Math.random() * 75;
       if (bounce) {
         bounce.remove();
         bounce = undefined;
@@ -286,6 +247,22 @@ const back = new Wall(
   "#800000"
 );
 
+/*
+const front = new Wall(
+  [
+    flatten({ x: boxMin, y: boxMin, z: boxMax }),
+    flatten({ x: boxMax, y: boxMin, z: boxMax }),
+    flatten({ x: boxMax, y: boxMax, z: boxMax }),
+    flatten({ x: boxMin, y: boxMax, z: boxMax }),
+  ],
+  "none",
+  "#800080"
+);
+*/
+
+(window as any).walls = {top, bottom, left, right, /*front,*/ back};
+
+
 function makeBall(center: Point3) {
   const diameter = ballRadius * flattenRatio(center.z) * 2;
   const [x, y] = flatten(center);
@@ -313,6 +290,7 @@ const ballVelocity = {
   y: Math.random() * 100 - 50,
   z: Math.random() * 100 - 50,
 };
+//ballVelocity.x = ballVelocity.y = ballVelocity.z = 0;
 let lastBallUpdate: number | undefined;
 
 function updateBall(time: DOMHighResTimeStamp) {
@@ -357,6 +335,7 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
       // TODO add a splat image on the glass or something like that.
+      // front.highlightPoint(ballPosition, time);
     }
   }
   lastBallUpdate = time;
