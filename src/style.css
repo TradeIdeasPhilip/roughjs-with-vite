@@ -13,3 +13,14 @@ body {
   padding: 0;
   overflow: hidden;
 }
+.fade {
+  animation: fade 450ms linear 0ms 1 normal forwards;
+}
+@keyframes fade {
+  0% {
+    opacity: 75%;
+  }
+  100% {
+    opacity: 0%;
+  }
+}

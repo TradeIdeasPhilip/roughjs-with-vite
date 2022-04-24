@@ -66,22 +66,29 @@ Sometimes they go slower.
 A random number generator controls the display time for each frame.
 This looks better than a fixed frame rate.
 
-I've considered getting rid of any calls to `Window.requestAnimationFrame()` because some of these effects are so slow relative to the browser's frame rate.
+I've considered getting rid of most calls to `Window.requestAnimationFrame()` because some of these effects are so slow relative to the browser's frame rate.
 
-
-### The ball needs similar tricks.
+### The ball uses similar tricks.
 I love the way the ball looks when it's paused.
-Redoing the randomness and moving the ball both make it hard to see the details of the ball.
-Basically  I just see a blur in the right general position and size.
+Originally the ball looked blurry because the program was updating it at 60 FPS.
+Redoing the randomness _and_ moving the ball _both_ make it hard to see the details of the ball.
 
-A simple solution would be to update the ball every 100 (plus some random number) milliseconds.
-I want to try that.
+Like the marks on the wall, I purposely slow down the frame rate.
+I draw a new ball after a pause of no less than 100 milliseconds.
+The exact value is chosen randomly for each frame.
 
-But I can do better.
-There are a lot of tricks to make things look like they are in motion.
-I can draw the main image clearly, then add my own blur.
+The old balls fade away.
+About 3 or 4 will be still visible at any time.
+Each one is usually distinct, i.e. they don't usually overlap.
+I added this effect to enhance the illusion of motion, to make up for the slow frame rate.
 
-Fading works really well at 60 FPS, so why not (a) draw the ball at the new position instantly while (b) letting the previous drawings of the ball fade gradually?
+The fading effect works even better than I expected.
+Before I added the fading, the slow framerate made everything jerky.
+The illusion of 3d motion still worked, and I could see the balls clearly, but it looked jerky.
+
+The trail of fading balls makes the slow framerate more obvious, but at the same time it looks better.
+It's more pleasant, less jarring.
+Also, you can see the ball for longer, so you can appreciate the details more.
 
 ### The 60 FPS hierarchy:
 * Fades are subtle effects.

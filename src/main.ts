@@ -349,7 +349,7 @@ const front = new Wall(
  * But you can save this so you can remove it later.
  */
 function makeBall(center: Point3, splat = false) {
-  const diameter = (splat ? 2 : 1) * ballRadius * flattenRatio(center.z) * 2;
+  const diameter = (splat ? 2.5 : 1) * ballRadius * flattenRatio(center.z) * 2;
   const [x, y] = flatten(center);
   const main = roughSvg.circle(x, y, diameter, {
     fill: /*splat ? "#ff5050" : */ "#ffa0a0",
@@ -381,7 +381,7 @@ let lastBallUpdate: number | undefined;
 
 /**
  * When should we redraw the ball?  We could do it every animation frame, but that doesn't look good.
- * 
+ *
  * This value should be consistent with `performance.now()` or a callback from `requestAnimationFrame()`.
  */
 let redrawBallAfter = -Infinity;
@@ -390,7 +390,7 @@ let redrawBallAfter = -Infinity;
  * Update ballPosition and ballVelocity based on the amount of time passed since the previous update.
  *
  * If the ball hits a wall, notify the corresponding wall object.
- * This can also change `ballSmashedUntil` and `redrawBallAfter`.
+ * This can also change `showSmashedBallNextTime` and `redrawBallAfter`.
  *
  * Assume that `Wall.timerUpdate()` will be called shortly after this.
  * @param time From `performance.now()` or a callback from `requestAnimationFrame()`.
@@ -441,35 +441,32 @@ function updateBall(time: DOMHighResTimeStamp) {
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
-      // This constant is a tough call.  Too fast and the user can't
-      // really the details of the smashed ball.  It looks more like
-      // a random flash.  I love the shape of the splat and I wish I
-      // could keep it up longer.  If I make this too long it looks weird.
-      // It looks like the window has frozen or something.
-      ballSmashedUntil = time + 150; //100 + Math.random() * 75;
+      showSmashedBallNextTime = true;
       redrawBallAfter = -Infinity;
     }
   }
   lastBallUpdate = time;
 }
 
-// TODO seems like this should be replaced with a Boolean:  showSmashedBallNextTime;
-// Or make this a function, so the smashed-ness can slowly revert to normal.  But now
-// that we've lowered the frame rate, that seems like overkill.
-let ballSmashedUntil = -Infinity;
+let showSmashedBallNextTime = false;
 
 let ballSvg: SVGElement | undefined;
+
+function fade(element: SVGElement) {
+  element.classList.add("fade");
+  setTimeout(() => element.remove(), 500);
+}
 
 function animate(time: DOMHighResTimeStamp) {
   requestAnimationFrame(animate);
   updateBall(time);
-  const showSmashedBall = time < ballSmashedUntil;
   if (time > redrawBallAfter) {
     if (ballSvg) {
-      ballSvg.remove(); // TODO make it fade out slowly.
+      fade(ballSvg);
       ballSvg = undefined;
     }
-    ballSvg = makeBall(ballPosition, showSmashedBall);
+    ballSvg = makeBall(ballPosition, showSmashedBallNextTime);
+    showSmashedBallNextTime = false;
     svgForeground.appendChild(ballSvg);
     redrawBallAfter = time + 100 + Math.random() * 100;
   }
