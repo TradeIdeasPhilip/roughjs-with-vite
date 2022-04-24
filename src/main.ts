@@ -1,9 +1,11 @@
 import "./style.css";
 
 import rough from "roughjs";
-import { getById } from "./lib/client-misc";
+import { getAudioBalanceControl, getById } from "./lib/client-misc";
 import { Point } from "roughjs/bin/geometry";
 import { Options } from "roughjs/bin/core";
+
+import whackUrl from "../Whack.mp3?url";
 
 // I copied these somewhat arbitrary dimensions from https://github.com/TradeIdeasPhilip/bounce-3d/blob/master/src/main.ts
 // so I wouldn't have to start from scratch.
@@ -386,6 +388,30 @@ let lastBallUpdate: number | undefined;
  */
 let redrawBallAfter = -Infinity;
 
+const whack = getById("whack", HTMLAudioElement);
+
+// In order for the build step to find this *.mp3 file I had to do both of these things.
+// 1) I had to do the url import in this TypeScript file.
+//    Vite didn't do this if I set the set the src property in the HTML file.
+// 2) I had to update vite.config.ts to include *.mp3 files.
+whack.src = whackUrl;
+
+/**
+ * @param z The current z position of the ball.
+ * @returns The desired volume.
+ */
+const whackVolume : (z : number) => number = makeLinear(ballMax, 1, ballMin, 0.25);
+
+/**
+ * Use this to set the left/right balance.
+ */
+const setWhackBalance = getAudioBalanceControl(whack);
+
+/**
+ * This will give you a good value for the left/right balance.
+ */
+const whackBalance = makeLinear(ballMin, -1, ballMax, 1);
+
 /**
  * Update ballPosition and ballVelocity based on the amount of time passed since the previous update.
  *
@@ -396,6 +422,28 @@ let redrawBallAfter = -Infinity;
  * @param time From `performance.now()` or a callback from `requestAnimationFrame()`.
  */
 function updateBall(time: DOMHighResTimeStamp) {
+  /**
+   * Actions common to all walls:
+   * * Plays a sound.
+   * * Draw the ball immediately.  This is a key frame that we have to display.
+   * Be sure to call this *after* updating ballPosition.
+   */
+  const hitAWall = () => {
+    try {
+      whack.pause();
+      whack.currentTime = 0;
+      whack.volume = whackVolume(ballPosition.z);
+      setWhackBalance(whackBalance(ballPosition.x));
+      whack.play();  
+    } catch (reason) {
+      console.warn("Unable to do audio stuff", reason);
+      // Interesting.  I often see this message:
+      // Uncaught (in promise) DOMException: The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22
+      // This seems innocuous.
+    }
+    // Redraw the ball ASAP.
+    redrawBallAfter = -Infinity;
+  }
   if (lastBallUpdate !== undefined) {
     const secondsPassed = (time - lastBallUpdate) / 1000;
     if (secondsPassed <= 0) {
@@ -409,13 +457,13 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.x = Math.abs(ballVelocity.x);
       //left.refresh();
       left.highlightPoint(ballPosition, time);
-      redrawBallAfter = -Infinity;
+      hitAWall();
     } else if (ballPosition.x > ballMax) {
       ballPosition.x = ballMax;
       ballVelocity.x = -Math.abs(ballVelocity.x);
       //right.refresh();
       right.highlightPoint(ballPosition, time);
-      redrawBallAfter = -Infinity;
+      hitAWall();
     }
     ballPosition.y += ballVelocity.y * secondsPassed;
     if (ballPosition.y < ballMin) {
@@ -423,13 +471,13 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.y = Math.abs(ballVelocity.y);
       //bottom.refresh();
       bottom.highlightPoint(ballPosition, time);
-      redrawBallAfter = -Infinity;
+      hitAWall();
     } else if (ballPosition.y > ballMax) {
       ballPosition.y = ballMax;
       ballVelocity.y = -Math.abs(ballVelocity.y);
       //top.refresh();
       top.highlightPoint(ballPosition, time);
-      redrawBallAfter = -Infinity;
+      hitAWall();
     }
     ballPosition.z += ballVelocity.z * secondsPassed;
     if (ballPosition.z < ballMin) {
@@ -437,12 +485,12 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.z = Math.abs(ballVelocity.z);
       //back.refresh();
       back.highlightPoint(ballPosition, time);
-      redrawBallAfter = -Infinity;
+      hitAWall();
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
       showSmashedBallNextTime = true;
-      redrawBallAfter = -Infinity;
+      hitAWall();
     }
   }
   lastBallUpdate = time;
