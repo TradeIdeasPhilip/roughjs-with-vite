@@ -400,12 +400,17 @@ whack.src = whackUrl;
  * @param z The current z position of the ball.
  * @returns The desired volume.
  */
-const whackVolume : (z : number) => number = makeLinear(ballMax, 1, ballMin, 0.25);
+const whackVolume: (z: number) => number = makeLinear(
+  ballMax,
+  1,
+  ballMin,
+  0.25
+);
 
 /**
  * Use this to set the left/right balance.
  */
-const setWhackBalance = getAudioBalanceControl(whack);
+let setWhackBalance: ((balance: number) => void) | undefined;
 
 /**
  * This will give you a good value for the left/right balance.
@@ -430,11 +435,18 @@ function updateBall(time: DOMHighResTimeStamp) {
    */
   const hitAWall = () => {
     try {
-      whack.pause();
-      whack.currentTime = 0;
-      whack.volume = whackVolume(ballPosition.z);
-      setWhackBalance(whackBalance(ballPosition.x));
-      whack.play();  
+      if (!whack.muted) {
+        whack.pause();
+        whack.currentTime = 0;
+        whack.volume = whackVolume(ballPosition.z);
+        if (!setWhackBalance) {
+          // Defer this until we are allowed to use the audio.
+          // Otherwise we get an error that I don't know how to recover from.
+          setWhackBalance = getAudioBalanceControl(whack);
+        }
+        setWhackBalance(whackBalance(ballPosition.x));
+        whack.play();
+      }
     } catch (reason) {
       console.warn("Unable to do audio stuff", reason);
       // Interesting.  I often see this message:
@@ -443,7 +455,7 @@ function updateBall(time: DOMHighResTimeStamp) {
     }
     // Redraw the ball ASAP.
     redrawBallAfter = -Infinity;
-  }
+  };
   if (lastBallUpdate !== undefined) {
     const secondsPassed = (time - lastBallUpdate) / 1000;
     if (secondsPassed <= 0) {
@@ -521,3 +533,27 @@ function animate(time: DOMHighResTimeStamp) {
   Wall.timerUpdate(time);
 }
 requestAnimationFrame(animate);
+
+const mute = getById("mute", HTMLInputElement);
+const unmute = getById("unmute", HTMLInputElement);
+const closeControls = getById("close-controls", HTMLDivElement);
+const controls = getById("controls", HTMLDivElement);
+
+mute.addEventListener("click", () => (whack.muted = true));
+unmute.addEventListener("click", () => (whack.muted = false));
+
+closeControls.addEventListener(
+  "click",
+  () => (controls.style.display = "none")
+);
+
+document.body.addEventListener("click", () => {
+  controls.style.display = controls.style.display == "" ? "none" : "";
+});
+
+controls.addEventListener("click", (event) => event.cancelBubble = true );
+
+getById("speed", HTMLInputElement).addEventListener("input", () => {
+  // TODO Need a way to set the speed of the ball.
+});
+

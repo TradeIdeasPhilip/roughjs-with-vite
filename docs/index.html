@@ -5,8 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.e3b9682b.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite App</title>
-    <script type="module" crossorigin src="./assets/index.c9df2eb8.js"></script>
-    <link rel="stylesheet" href="./assets/index.65a50a4f.css">
+    <script type="module" crossorigin src="./assets/index.4add77e3.js"></script>
+    <link rel="stylesheet" href="./assets/index.a3cf0669.css">
   </head>
   <body>
     <svg
@@ -19,7 +19,21 @@
       <g id="background"></g>
       <g id="foreground"></g>
     </svg>
-    <audio id="whack"></audio>
+    <audio id="whack" muted></audio>
+    <div id="controls-holder">
+      <div id="controls">
+        <div id="controls-1">
+          <div>
+            <input id="mute" type="radio" name="mute" checked><label for="mute">🔈</label>
+            <input id="unmute" type="radio" name="mute"><label for="unmute">🔊</label>
+          </div>
+          <div id="close-controls">✘</div>
+        </div>
+        <div id="controls-2">
+          🐢<input type="range" id="speed" min="0" max="10">🐰
+        </div>
+      </div>  
+    </div>
     
   </body>
 </html>

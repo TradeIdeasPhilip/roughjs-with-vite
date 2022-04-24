@@ -17,7 +17,21 @@
       <g id="background"></g>
       <g id="foreground"></g>
     </svg>
-    <audio id="whack"></audio>
+    <audio id="whack" muted></audio>
+    <div id="controls-holder">
+      <div id="controls">
+        <div id="controls-1">
+          <div>
+            <input id="mute" type="radio" name="mute" checked><label for="mute">🔈</label>
+            <input id="unmute" type="radio" name="mute"><label for="unmute">🔊</label>
+          </div>
+          <div id="close-controls">✘</div>
+        </div>
+        <div id="controls-2">
+          🐢<input type="range" id="speed" min="0" max="10">🐰
+        </div>
+      </div>  
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
