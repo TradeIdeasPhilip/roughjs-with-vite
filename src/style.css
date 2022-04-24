@@ -50,3 +50,6 @@ body {
 #close-controls {
   cursor: pointer;
 }
+a {
+  text-decoration-line: none;
+}
