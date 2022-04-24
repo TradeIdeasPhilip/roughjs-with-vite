@@ -17,6 +17,9 @@ const ballMin = boxMin + ballRadius;
 const ballMax = boxMax - ballRadius;
 const ballRange = ballMax - ballMin;
 
+/**
+ * A point in three dimensions.
+ */
 type Point3 = {
   /**
    * Negative numbers move left, positive numbers move right.
@@ -36,8 +39,22 @@ type Point3 = {
   z: number;
 };
 
+/**
+ * For use with `makeLinear()`.
+ */
 type LinearFunction = (x: number) => number;
 
+/**
+ * Linear interpolation and extrapolation.
+ *
+ * Given two points, this function will find the line that lines on those two points.
+ * And it will return a function that will find all points on that line.
+ * @param x1 One valid input.
+ * @param y1 The expected output at x1.
+ * @param x2 Another valid input.  Must differ from x2.
+ * @param y2 The expected output at x2.
+ * @returns A function of a line.  Give an x as input and it will return the expected y.
+ */
 function makeLinear(
   x1: number,
   y1: number,
@@ -50,9 +67,17 @@ function makeLinear(
   };
 }
 
+// This scale is somewhat arbitrary.
+//
+// I used 0 to 100 for the size of the svg.
+// I'm reserving one unit on each side as margin/padding.
+//
+// This corresponds to the <svg>'s viewBox property.
+//
+// It would be convenient to put the origin in the center of the <svg>.
+// The docs say I should be able to go from -50 to +50, but I've never gotten negative numbers to work.
 const screenMin = 1;
 const screenMax = 99;
-const screenSize = screenMax - screenMin;
 
 /**
  * Scale a length on the screen to simulate depth.
@@ -64,7 +89,13 @@ const screenSize = screenMax - screenMin;
  */
 const flattenRatio = makeLinear(boxMax, 1, boxMin, 0.5);
 
+/**
+ * Convert points from 3d to 2d.
+ * @param param0 A point in the three dimensional world.
+ * @returns The corresponding point in the 2d `<svg>`.
+ */
 function flatten({ x, y, z }: Point3): Point {
+  // flattenRatio() is a simplified linear formula.  A more accurate formula would use an exponential.
   const ratio = flattenRatio(z);
   /**
    * Convert from box coordinates to screen coordinates.
@@ -87,10 +118,28 @@ const svgForeground = getById("foreground", SVGGElement);
 const svg = getById("main", SVGSVGElement);
 const roughSvg = rough.svg(svg);
 
+/**
+ *
+ * @param a
+ * @param b
+ * @returns A point half way between a and b.
+ */
 function midpoint(a: Point, b: Point): Point {
   return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 }
 
+/**
+ *
+ * @param from A point on a line.
+ * @param to A point on a line.
+ * @param fromRatio How much the result should look like the `from` value.
+ * @returns
+ * * `fromRatio == 0` means to return `to` unaltered.
+ * * `fromRatio == 1` means to return `from` unaltered.
+ * * `fromRatio == 0.5`means to return the midpoint between `from` and `to`.
+ * * Values less than 0 and greater than one will extrapolate along the same line.
+ * * `from == to` means to ignore `fromRatio` and always return `to`.
+ */
 function interpolate(from: Point, to: Point, fromRatio: number): Point {
   const toRatio = 1 - fromRatio;
   return [
@@ -99,6 +148,9 @@ function interpolate(from: Point, to: Point, fromRatio: number): Point {
   ];
 }
 
+/**
+ * A Wall object will draw one of the faces of the cube.
+ */
 class Wall {
   private static options(color: string): Options {
     return {
@@ -108,13 +160,25 @@ class Wall {
       hachureGap: 5,
       disableMultiStrokeFill: true,
       hachureAngle: Math.random() * 360,
-      //preserveVertices: true,
+      //preserveVertices: true,  -- This made things look more accurate, and that totally broke the vibe.
     };
   }
   #element: SVGElement | undefined;
   constructor(
+    /**
+     * The four corners of a one of the faces of the cube.
+     * These should be ordered correctly for a call to `polygon()`.
+     */
     private readonly points: Point[],
+    /**
+     * Draw the wall in this color.
+     * Expects a css color string.
+     */
     private readonly color: string,
+    /**
+     * When the ball bounces off this wall, draw the special effects in this color.
+     * Defaults to the main color of the wall.
+     */
     private readonly bounceColor = color
   ) {
     if (points.length != 4) {
@@ -122,17 +186,31 @@ class Wall {
     }
     this.refresh();
   }
+  /**
+   * Delete any previous drawings.
+   */
   private clear() {
     if (this.#element) {
       this.#element.remove();
     }
     this.#element = undefined;
   }
+  /**
+   * Redraw the wall.  Clear any old drawings, first.
+   */
   refresh() {
     this.clear();
     this.#element = roughSvg.polygon(this.points, Wall.options(this.color));
     svgBackground.appendChild(this.#element);
   }
+  /**
+   * Redraw the wall.
+   * And start an animation sequence to highlight one point on the wall.
+   *
+   * Clear any old drawings, first.
+   * @param toHighlight The point to highlight.
+   * @param time From `performance.now()` or a callback from `requestAnimationFrame()`.
+   */
   highlightPoint(toHighlight: Point3, time: DOMHighResTimeStamp) {
     this.clear();
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -262,6 +340,14 @@ const front = new Wall(
 
 (window as any).walls = { top, bottom, left, right, /*front,*/ back };
 
+/**
+ *
+ * @param center Where to draw the ball.
+ * @param splat Draw a special effect to signify that the ball is pressed against the near wall.
+ * @returns The element for the ball.
+ * It has already been added to the `<svg>`.
+ * But you can save this so you can remove it later.
+ */
 function makeBall(center: Point3, splat = false) {
   const diameter = (splat ? 2 : 1) * ballRadius * flattenRatio(center.z) * 2;
   const [x, y] = flatten(center);
@@ -286,13 +372,29 @@ const ballPosition: Point3 = {
   z: Math.random() * ballRange + ballMin,
 };
 const ballVelocity = {
-  x: Math.random() * 100 - 50,
-  y: Math.random() * 100 - 50,
-  z: Math.random() * 100 - 50,
+  x: Math.random() * 50 - 25,
+  y: Math.random() * 50 - 25,
+  z: Math.random() * 50 - 25,
 };
 //ballVelocity.x = ballVelocity.y = ballVelocity.z = 0;
 let lastBallUpdate: number | undefined;
 
+/**
+ * When should we redraw the ball?  We could do it every animation frame, but that doesn't look good.
+ * 
+ * This value should be consistent with `performance.now()` or a callback from `requestAnimationFrame()`.
+ */
+let redrawBallAfter = -Infinity;
+
+/**
+ * Update ballPosition and ballVelocity based on the amount of time passed since the previous update.
+ *
+ * If the ball hits a wall, notify the corresponding wall object.
+ * This can also change `ballSmashedUntil` and `redrawBallAfter`.
+ *
+ * Assume that `Wall.timerUpdate()` will be called shortly after this.
+ * @param time From `performance.now()` or a callback from `requestAnimationFrame()`.
+ */
 function updateBall(time: DOMHighResTimeStamp) {
   if (lastBallUpdate !== undefined) {
     const secondsPassed = (time - lastBallUpdate) / 1000;
@@ -307,11 +409,13 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.x = Math.abs(ballVelocity.x);
       //left.refresh();
       left.highlightPoint(ballPosition, time);
+      redrawBallAfter = -Infinity;
     } else if (ballPosition.x > ballMax) {
       ballPosition.x = ballMax;
       ballVelocity.x = -Math.abs(ballVelocity.x);
       //right.refresh();
       right.highlightPoint(ballPosition, time);
+      redrawBallAfter = -Infinity;
     }
     ballPosition.y += ballVelocity.y * secondsPassed;
     if (ballPosition.y < ballMin) {
@@ -319,11 +423,13 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.y = Math.abs(ballVelocity.y);
       //bottom.refresh();
       bottom.highlightPoint(ballPosition, time);
+      redrawBallAfter = -Infinity;
     } else if (ballPosition.y > ballMax) {
       ballPosition.y = ballMax;
       ballVelocity.y = -Math.abs(ballVelocity.y);
       //top.refresh();
       top.highlightPoint(ballPosition, time);
+      redrawBallAfter = -Infinity;
     }
     ballPosition.z += ballVelocity.z * secondsPassed;
     if (ballPosition.z < ballMin) {
@@ -331,6 +437,7 @@ function updateBall(time: DOMHighResTimeStamp) {
       ballVelocity.z = Math.abs(ballVelocity.z);
       //back.refresh();
       back.highlightPoint(ballPosition, time);
+      redrawBallAfter = -Infinity;
     } else if (ballPosition.z > ballMax) {
       ballPosition.z = ballMax;
       ballVelocity.z = -Math.abs(ballVelocity.z);
@@ -339,14 +446,17 @@ function updateBall(time: DOMHighResTimeStamp) {
       // a random flash.  I love the shape of the splat and I wish I
       // could keep it up longer.  If I make this too long it looks weird.
       // It looks like the window has frozen or something.
-      ballSmashedUntil = time + 150;//100 + Math.random() * 75;
+      ballSmashedUntil = time + 150; //100 + Math.random() * 75;
+      redrawBallAfter = -Infinity;
     }
   }
   lastBallUpdate = time;
 }
 
+// TODO seems like this should be replaced with a Boolean:  showSmashedBallNextTime;
+// Or make this a function, so the smashed-ness can slowly revert to normal.  But now
+// that we've lowered the frame rate, that seems like overkill.
 let ballSmashedUntil = -Infinity;
-let smashedBallVisible = false;
 
 let ballSvg: SVGElement | undefined;
 
@@ -354,15 +464,15 @@ function animate(time: DOMHighResTimeStamp) {
   requestAnimationFrame(animate);
   updateBall(time);
   const showSmashedBall = time < ballSmashedUntil;
-  if (!(showSmashedBall && smashedBallVisible)) {
+  if (time > redrawBallAfter) {
     if (ballSvg) {
-      ballSvg.remove();
+      ballSvg.remove(); // TODO make it fade out slowly.
       ballSvg = undefined;
     }
     ballSvg = makeBall(ballPosition, showSmashedBall);
     svgForeground.appendChild(ballSvg);
+    redrawBallAfter = time + 100 + Math.random() * 100;
   }
-  smashedBallVisible = showSmashedBall;
   Wall.timerUpdate(time);
 }
 requestAnimationFrame(animate);
