@@ -373,7 +373,7 @@ const ballPosition: Point3 = {
   y: Math.random() * ballRange + ballMin,
   z: Math.random() * ballRange + ballMin,
 };
-const ballVelocity = {
+let ballVelocity = {
   x: Math.random() * 50 - 25,
   y: Math.random() * 50 - 25,
   z: Math.random() * 50 - 25,
@@ -551,9 +551,30 @@ document.body.addEventListener("click", () => {
   controls.style.display = controls.style.display == "" ? "none" : "";
 });
 
-controls.addEventListener("click", (event) => event.cancelBubble = true );
+controls.addEventListener("click", (event) => (event.cancelBubble = true));
 
-getById("speed", HTMLInputElement).addEventListener("input", () => {
-  // TODO Need a way to set the speed of the ball.
+const scaleSpeedFromGui = makeLinear(0, 0, 5, 21.7);
+
+const speedInput = getById("speed", HTMLInputElement);
+
+speedInput.addEventListener("input", () => {
+  const inputSpeed = parseInt(speedInput.value);
+  const speed = scaleSpeedFromGui(inputSpeed);
+  ballVelocity = randomDirection3(speed);
+  console.log({inputSpeed, speed, ballVelocity, resultingSpeed : Math.hypot(ballVelocity.x, ballVelocity.y, ballVelocity.z)});
+  // TODO shouldn't we use this same code when initializing ballVelocity the first time?
 });
 
+function randomDirection3(desiredLength = 1): Point3 {
+  function normal() {
+    return Math.random() + Math.random() + Math.random() + Math.random() - 2;
+  }
+  const result = { x: normal(), y : normal(), z : normal()};
+  // TODO what about ÷0 ?
+  const initialLength = Math.hypot(result.x, result.y, result.z);
+  const factor = desiredLength / initialLength;
+  result.x *= factor;
+  result.y *= factor;
+  result.z *= factor;
+  return result;
+}
