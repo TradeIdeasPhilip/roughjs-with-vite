@@ -6,6 +6,7 @@ import { Point } from "roughjs/bin/geometry";
 import { Options } from "roughjs/bin/core";
 
 import whackUrl from "../Whack.mp3?url";
+import { makeLinear } from "./lib/misc";
 
 // I copied these somewhat arbitrary dimensions from https://github.com/TradeIdeasPhilip/bounce-3d/blob/master/src/main.ts
 // so I wouldn't have to start from scratch.
@@ -40,34 +41,6 @@ type Point3 = {
    */
   z: number;
 };
-
-/**
- * For use with `makeLinear()`.
- */
-type LinearFunction = (x: number) => number;
-
-/**
- * Linear interpolation and extrapolation.
- *
- * Given two points, this function will find the line that lines on those two points.
- * And it will return a function that will find all points on that line.
- * @param x1 One valid input.
- * @param y1 The expected output at x1.
- * @param x2 Another valid input.  Must differ from x2.
- * @param y2 The expected output at x2.
- * @returns A function of a line.  Give an x as input and it will return the expected y.
- */
-function makeLinear(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number
-): LinearFunction {
-  const slope = (y2 - y1) / (x2 - x1);
-  return function (x: number) {
-    return (x - x1) * slope + y1;
-  };
-}
 
 // This scale is somewhat arbitrary.
 //
