@@ -418,6 +418,10 @@ function updateBall(time: DOMHighResTimeStamp) {
           setWhackBalance = getAudioBalanceControl(whack);
         }
         setWhackBalance(whackBalance(ballPosition.x));
+        // This doesn't work well under Safari.
+        // I get sounds at random times.
+        // It works fine in Chrome with Mac or PC.
+        // TODO fix it!
         whack.play();
       }
     } catch (reason) {

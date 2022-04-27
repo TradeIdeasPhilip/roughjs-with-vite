@@ -1,11 +1,16 @@
-# Purpose
+# Fun with crayons, 3d-ish graphics, and TypeScript
+## Purpose
 Just trying a few things.
 
 I'm making a ball bounce inside a cube.
 It's a toy problem.
 It's fun and pretty, but the point was to learn some new tools.
 
+## See it live
 [See this live in your browser](https://tradeideasphilip.github.io/roughjs-with-vite/)
+I've mostly tested this with Chrome.
+I'm having trouble with the sound under Safari, but otherwise the code seems to work fine.
+
 # Vite
  https://vitejs.dev/
 
