@@ -347,11 +347,12 @@ const ballPosition: Point3 = {
   z: Math.random() * ballRange + ballMin,
 };
 let ballVelocity = {
-  x: Math.random() * 50 - 25,
-  y: Math.random() * 50 - 25,
-  z: Math.random() * 50 - 25,
+  // This is just a placeholder.
+  // The code below will read the initial speed from the GUI and add a random direction.
+  x: 0,
+  y: 0,
+  z: 0,
 };
-//ballVelocity.x = ballVelocity.y = ballVelocity.z = 0;
 let lastBallUpdate: number | undefined;
 
 /**
@@ -532,21 +533,58 @@ controls.addEventListener("click", (event) => (event.cancelBubble = true));
 
 const scaleSpeedFromGui = makeLinear(0, 0, 5, 21.7);
 
-const speedInput = getById("speed", HTMLInputElement);
+{
+  const speedInput = getById("speed", HTMLInputElement);
+  const turtleIcon = getById("turtle", HTMLSpanElement);
+  const rabbitIcon = getById("rabbit", HTMLSpanElement);
 
-speedInput.addEventListener("input", () => {
-  const inputSpeed = parseInt(speedInput.value);
-  const speed = scaleSpeedFromGui(inputSpeed);
-  ballVelocity = randomDirection3(speed);
-  console.log({inputSpeed, speed, ballVelocity, resultingSpeed : Math.hypot(ballVelocity.x, ballVelocity.y, ballVelocity.z)});
-  // TODO shouldn't we use this same code when initializing ballVelocity the first time?
-});
+  const min = parseInt(speedInput.min) ;
+  const max = parseInt(speedInput.max) ;
+
+  const speedControlUpdate = () => {
+    const inputSpeed = parseInt(speedInput.value);
+
+    turtleIcon.style.cursor = (inputSpeed > min)?"w-resize":"";
+    rabbitIcon.style.cursor = (inputSpeed < max)?"e-resize":"";
+
+    const speed = scaleSpeedFromGui(inputSpeed);
+    ballVelocity = randomDirection3(speed);
+    console.log({
+      inputSpeed,
+      speed,
+      ballVelocity,
+      resultingSpeed: Math.hypot(
+        ballVelocity.x,
+        ballVelocity.y,
+        ballVelocity.z
+      ),
+    });
+  };
+
+  speedControlUpdate();
+
+  speedInput.addEventListener("input", speedControlUpdate);
+  turtleIcon.addEventListener("click", () => {
+    const speed = parseInt(speedInput.value);
+    if (speed > min) {
+      speedInput.value = (speed - 1).toString();
+      speedControlUpdate();
+    }
+  });
+  rabbitIcon.addEventListener("click", () => {
+    const speed = parseInt(speedInput.value);
+    if (speed < max) {
+      speedInput.value = (speed + 1).toString();
+      speedControlUpdate();
+    }
+  });
+}
 
 function randomDirection3(desiredLength = 1): Point3 {
   function normal() {
     return Math.random() + Math.random() + Math.random() + Math.random() - 2;
   }
-  const result = { x: normal(), y : normal(), z : normal()};
+  const result = { x: normal(), y: normal(), z: normal() };
   // TODO what about ÷0 ?
   const initialLength = Math.hypot(result.x, result.y, result.z);
   const factor = desiredLength / initialLength;
